@@ -1,8 +1,8 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 
 using namespace std;
 
@@ -30,26 +30,6 @@ public:
         cout << endl;
         cout << "PHONE: " << phone << endl;
         cout << endl;
-    }
-
-    void displayField(char flag) const {
-        switch (flag) {
-            case 'n':
-                cout << "NAME: " << name << endl;
-                break;
-            case 'g':
-                cout << "GRADES: ";
-                for (const auto& grade : grades) {
-                    cout << grade << " ";
-                }
-                cout << endl;
-                break;
-            case 'p':
-                cout << "PHONE: " << phone << endl;
-                break;
-            default:
-                cout << "Unknown flag: " << flag << endl;
-        }
     }
 };
 
@@ -98,52 +78,98 @@ vector<StudentRecord> parseDatabase(const string& filename) {
     return records;
 }
 
-// Function to find and display a record by SID
-bool findRecordBySID(const vector<StudentRecord>& records, const string& sid, char flag = '\0') {
-    for (const auto& record : records) {
-        if (record.SID.find(sid) != string::npos) {
-            if (flag == '\0') {
-                record.displayRecord();
-            } else {
-                record.displayField(flag);
-            }
-            return true;
-        }
+// Function to save the updated database to the file
+void saveDatabase(const vector<StudentRecord>& records, const string& filename) {
+    ofstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Error: Could not write to file " << filename << endl;
+        return;
     }
-    return false;
+
+    for (const auto& record : records) {
+        file << "SID: " << record.SID << endl;
+        file << "NAME: " << record.name << endl;
+        file << "ENROLLMENTS: ";
+        for (const auto& course : record.enrollments) {
+            file << course << " ";
+        }
+        file << endl;
+        file << "GRADES: ";
+        for (const auto& grade : record.grades) {
+            file << grade << " ";
+        }
+        file << endl;
+        file << "PHONE: " << record.phone << endl;
+        file << endl;
+    }
+
+    file.close();
 }
 
 int main(int argc, char* argv[]) {
-    // Ensure proper usage of the program
-    if (argc < 4 || string(argv[1]) != "-db" || string(argv[3]) != "-sid") {
-        cerr << "Usage: TaskA.exe -db <filename> -sid <SID> [-n|-g|-p]" << endl;
+    // Check for minimum arguments
+    if (argc < 7) {
+        cerr << "Usage: updaterecord.exe -db <filename> -sid <SID> [-name <New Name>] [-enrollments <New Enrollments>]" << endl;
         return EXIT_FAILURE;
     }
 
-    string filename = argv[2];
-    string sid = argv[4]; // Extract the SID directly
-    char flag = '\0';
+    string filename;
+    string sid;
+    string newName;
+    string newEnrollments;
 
-    if (argc == 6) {
-        if (string(argv[5]) == "-n") {
-            flag = 'n';
-        } else if (string(argv[5]) == "-g") {
-            flag = 'g';
-        } else if (string(argv[5]) == "-p") {
-            flag = 'p';
+    // Parse command line arguments
+    for (int i = 1; i < argc; i++) {
+        if (string(argv[i]) == "-db") {
+            filename = argv[++i];
+        } else if (string(argv[i]) == "-sid") {
+            sid = argv[++i];
+        } else if (string(argv[i]) == "-name") {
+            newName = argv[++i];
+        } else if (string(argv[i]) == "-enrollments") {
+            newEnrollments = argv[++i];
         } else {
-            cerr << "Invalid flag provided. Valid flags are -n, -g, -p." << endl;
+            cerr << "Unknown or unsupported argument: " << argv[i] << endl;
             return EXIT_FAILURE;
         }
     }
 
     vector<StudentRecord> records = parseDatabase(filename);
 
-    // Find and display the record with the given SID and optional flag
-    if (!findRecordBySID(records, sid, flag)) {
-        cout << "Record with SID " << sid << " not found." << endl;
+    // Check if file exists
+    if (records.empty()) {
+        cerr << "Error: Cannot open database file " << filename << endl;
+        return EXIT_FAILURE;
     }
+
+    // Update the record with the given SID
+    bool updated = false;
+    for (auto& record : records) {
+        if (record.SID == sid) {
+            if (!newName.empty()) {
+                record.name = newName;
+            }
+            if (!newEnrollments.empty()) {
+                stringstream ss(newEnrollments);
+                string course;
+                record.enrollments.clear();
+                while (ss >> course) {
+                    record.enrollments.push_back(course);
+                }
+            }
+            updated = true;
+            break;
+        }
+    }
+
+    if (!updated) {
+        cout << "No record found with SID " << sid << endl;
+        return EXIT_FAILURE;
+    }
+
+    saveDatabase(records, filename);
+
+    cout << "Record updated successfully." << endl;
 
     return EXIT_SUCCESS;
 }
-

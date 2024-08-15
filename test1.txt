@@ -1,1 +1,4 @@
-Hello test test again some text I wrote ago Hello
+Hello test again some text I wrote ago Hello
+This is a text file I will use.
+The word "searchTerm" is not in this file.
+It will be used over and over again.
